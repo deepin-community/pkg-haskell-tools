@@ -1,0 +1,10 @@
+Document: pkg-haskell-tools
+Title: Debian Haskell Packaging Tools
+Author: Joachim Breitner
+Abstract: This manual describes the Debian Haskell Team multi
+ purpose tool, combining various more or less useful tools.
+Section: Debian
+
+Format: HTML
+Index: /usr/share/doc/pkg-haskell-tools/dht.html
+Files: /usr/share/doc/pkg-haskell-tools/dht.html

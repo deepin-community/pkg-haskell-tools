@@ -1,0 +1,145 @@
+#!/bin/bash
+
+set -e
+
+if [ "$1" = "--help" ]
+then
+	cat <<__END__
+upgrade - Upgrade a package to the version in the package plan
+
+__END__
+	$0 --manpage
+	exit 0
+fi
+
+
+if [ "$1" = "--manpage" ]
+then
+cat <<__END__
+Usage: dht upgrade [-D dist] directory/
+
+This script will:
+
+ * Query the package plan for the desired version number.
+ * Run debchange to amend the debian/changlog.
+ * Run cabal-debian --official --upgrade to upgrade the packaging.
+ * Optimistically mark the package as ready for release
+ * Commit this to git.
+
+At the end, it will rightfully ask you to review the changes,
+giving you a helpful link to the diff between the upstream sources.
+__END__
+	exit 0;
+fi
+
+if [ "$1" = "-D" ]
+then
+	dist="$2"
+	shift
+	shift
+else
+	dist=unstable
+fi
+
+if ! git diff-files --quiet -- "$@"
+then
+      echo "The git repository is not clean. Please fix that first!"
+      exit 1
+fi
+
+if ! git diff-index --cached --quiet HEAD -- "$@"
+then
+      echo "WARNING: The git index is not clean, and will be amended!"
+fi
+
+if test -n "$(git ls-files --exclude-standard --others -- "$@")"
+then
+      echo "The git repository has untracked files. Please fix that first!"
+      exit 1
+fi
+
+
+for dir in "$@"
+do
+  pushd "$dir" >/dev/null
+
+  if [ ! -d debian ]
+  then
+    echo "ERROR: No debian/ directory found in $dir; run me in the packaging directory."
+    popd
+    continue
+  fi
+
+
+  cabal_name="$(grep -Po '(?<=hackage.haskell\.org/package/)[a-zA-Z0-9-]+(?=/distro-monitor)' debian/watch)"
+  if [ -z "$cabal_name" ]
+  then
+    echo "could not detect cabal name from $dir/debian/watch"
+    exit 1
+  fi
+
+  old_version="$(dpkg-parsechangelog -ldebian/changelog -c1 | grep-dctrl -n -s Version .)"
+  old_version="$(echo "$old_version" | cut -d- -f1)" # this could be improved
+  if echo "$old_version" | fgrep -q : ; then
+	epoch="$(echo "$old_version" | cut -d: -f1)":
+	old_version="$(echo "$old_version" | cut -d: -f2-)"
+  else
+          epoch=''
+  fi
+
+  version=$(grep "^$cabal_name " ../../../package-plan/packages.txt|cut -d\  -f2)
+
+  if [ -z "$version" ]
+  then
+	echo "could not detect version to upgrade to."
+	exit 1
+  fi
+
+  if [ "$version" = "$old_version" ]
+  then
+	echo "No new version to upgrade to."
+	exit 1
+  fi
+
+  branch_name="$(git symbolic-ref -q HEAD)"
+  branch_name="${branch_name##refs/heads/}"
+
+  git checkout --orphan dht-update-tmp
+
+  # base commit
+  origtargz -u
+  dht cabal-debian --exec-map c2hs:c2hs --exec-map gtk2hsC2hs:gtk2hs-buildtools --exec-map gtk2hsHookGenerator:gtk2hs-buildtools --exec-map gtk2hsTypeGen:gtk2hs-buildtools --exec-map hsc2hs:ghc --upgrade
+  git add .
+  git commit -q -m 'Temporary base commit'
+
+  # next commit
+  dht dch --newversion="$epoch$version-1" 'New upstream release'
+  origtargz -u
+  dht cabal-debian --exec-map c2hs:c2hs --exec-map gtk2hsC2hs:gtk2hs-buildtools --exec-map gtk2hsHookGenerator:gtk2hs-buildtools --exec-map gtk2hsTypeGen:gtk2hs-buildtools --exec-map hsc2hs:ghc --upgrade
+  dht dch -D $dist -r ''
+  git commit . -q -m "$cabal_name: Upgrading from $old_version to $version"
+
+  commit=$(git rev-parse HEAD)
+  git checkout "$branch_name"
+  git branch -D dht-update-tmp
+  if git cherry-pick "$commit"
+  then
+    echo "Upgraded $cabal_name to $version:"
+    git diff HEAD^..HEAD
+    echo "Please check http://hdiff.luite.com/cgit/$cabal_name/diff/?id=$version&id2=$old_version for interesting changes."
+  else
+    echo "Upgraded $cabal_name to $version"
+    echo "Merge failed. Please resolve and then run"
+    echo "git add -u .; git commit -v"
+    echo "Please also check http://hdiff.luite.com/cgit/$cabal_name/diff/?id=$version&id2=$old_version for interesting changes."
+  fi
+  if test -d debian/patches
+  then
+    echo "Please refresh the patches"
+  fi
+
+  popd
+done
+
+
+

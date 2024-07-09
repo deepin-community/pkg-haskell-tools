@@ -1,0 +1,84 @@
+#!/usr/bin/perl
+
+# TODO:
+#  * Check for uncommited changes before
+
+use strict;
+use warnings;
+
+use DHT;
+
+usage <<__END__;
+tag - Tag a built package
+
+Usage: dht tag [--dry-run] [directory..]
+
+For all given directories, which should be Debian source packages,
+figure out the current version from debian/changeslog and create a tag, tagging
+the youngest git commit that changed this particular source package.
+
+With --dry-run it simply checks if it could tag this (suite not UNRELEASED, not
+already tagged), and returns 0 if it could.
+__END__
+
+manpage <<__END__;
+
+Usage: dht tag [--dry-run] [directory..]
+
+For all given directories, which should be Debian source packages,
+figure out the current version from debian/changeslog and create a tag, tagging
+the youngest git commit that changed this particular source package.
+
+With --dry-run it simply checks if it could tag everything (suite not UNRELEASED, not
+already tagged), and returns 0 if it could.
+__END__
+
+my $dryrun = 0;
+my $ok = 1;
+if (@ARGV > 0 and $ARGV[0] eq "--dry-run") {
+	$dryrun = 1;
+	shift @ARGV;
+}
+
+my @dirs = @ARGV;
+
+for my $dir (@dirs) {
+	my $changelog = "$dir/debian/changelog";
+	unless (-r $changelog) {
+		print "ERROR: Could not find $changelog\n";
+		next;
+	}
+	open CHANGELOG, '<', $changelog or die @!;
+	my $firstline = <CHANGELOG>;
+	if ($firstline =~ m/([\w-]+) \(([\w:~.+-]+)\) ([\w-]+);/) {
+		my ($source, $version, $suite) = ($1, $2, $3);
+		my $tag = sprintf "%s_v%s", $source, $version;
+		$tag =~ tr/:~/_/;
+		my $msg = sprintf "Tagging %s version %s, targeted for %s", $source, $version, $suite;
+		if ($suite eq "UNRELEASED") {
+			printf STDERR "Cannot tag UNRELEASED package %s-%s\n", $source, $version;
+			$ok = 0;
+		} else {
+			if (system(qw/git show-ref --verify --quiet/, "refs/tags/$tag") == 0) {
+				# tag exists
+				printf STDERR "Cannot tag package %s-%s, already tagged\n", $source, $version;
+				$ok = 0;
+			} else {
+				if (not $dryrun)  {
+					my $rev = `git log -n 1 --pretty=format:%h -- $dir`;
+					my $ret = system(qw/git tag -a -m/, $msg, $tag, $rev);
+					die (sprintf "Failed to tag %s: %d\n", $tag, $?>>8) if $ret != 0;
+					printf "Added tag %s (revision %s)\n", $tag, $rev;
+				}
+			}
+		}
+	} else {
+		printf STDERR "Cannot parse %s:\n%s", $changelog, $firstline;
+		next
+	}
+}
+
+exit (not $ok);
+
+
+

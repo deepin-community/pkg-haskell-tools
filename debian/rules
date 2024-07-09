@@ -1,4 +1,17 @@
 #!/usr/bin/make -f
 
-%:
-	dh $@
+DEB_DEFAULT_COMPILER = ghc
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/hlibrary.mk
+
+build/pkg-haskell-tools:: build-ghc-stamp debian/dht.1 debian/dht.html
+
+debian/dht.html: dht scripts/*
+	./dht --manpage | pandoc -f markdown -s -t html > $@
+
+debian/dht.1: dht scripts/*
+	./dht --manpage | pandoc -f markdown -s -t man > $@
+
+clean::
+	rm -f debian/dht.1

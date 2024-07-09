@@ -1,0 +1,83 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use File::Slurp;
+
+use DHT;
+
+usage <<__END__;
+what-to-upgrade - Find packages to be upgraded
+
+Usage: dht what-to-upgrade [directory..]
+
+For all given directories (defaults to p/*/), check if they are to be upgraded,
+i.e. that the package plan lists a newer version than the changelog.
+__END__
+
+manpage <<__END__;
+
+Usage: dht what-to-upgrade [directory..]
+
+For all given directories (defaults to `p/*/`), check if they are to be upgraded,
+i.e. that the package plan lists a newer version than the changelog.
+__END__
+
+my @dirs = @ARGV;
+
+unless (@dirs) {
+	@dirs = glob 'p/*/';
+}
+
+my %plan;
+open PLAN, '<', '../package-plan/packages.txt' or die "Failure to open ../package-plan/packages.txt: ".@!;
+while (<PLAN>) {
+        chomp;
+        next if /^#/;
+        next if /^\s*$/;
+        unless (m/^(.*?) (.*?)(?: ([^#]*))?(?:#.*)?$/) {
+                print "Ignoring unparseable line $.: $_\n";
+        }
+        my ($pkg,$version,$attribs) = ($1,$2,$3);
+	next if $attribs and $attribs =~ /obsolete/;
+	$plan{$pkg} = $version;
+}
+close PLAN or die @!;
+
+for my $dir (@dirs) {
+	my $changelog = "$dir/debian/changelog";
+	my $watchfile = "$dir/debian/watch";
+	next unless -r $changelog;
+	next unless -r $watchfile;
+
+	open CHANGELOG, '<', $changelog or die @!;
+	my $firstline = <CHANGELOG>;
+	if ($firstline =~ m/([\w-]+) \(([\w:~.+-]+)\) (\w+);/) {
+		my ($source, $version, $suite) = ($1, $2, $3);
+		my ($cabal_version) = ($version =~ m/^(?:.*:)?(.*?)(?:\+(?:dfsg|ds)\d*)?-.*?$/);
+
+		my $watch = read_file($watchfile) or die @!;
+		unless ($watch =~ m!https?://hackage.haskell.org/package/(.*)/distro-monitor!) {
+			#printf STDERR "Cannot parse watchfile %s\n", $watchfile;
+			# ignore packages with non-standard watch files
+			next
+		}
+		my $cabal_package = $1;
+
+		unless (exists $plan{$cabal_package}) {
+			printf STDERR "W: package %s not in the package plan\n", $cabal_package;
+			next
+		}
+
+		if ($cabal_version ne $plan{$cabal_package}) {
+			printf "%s\n", $dir;
+		}
+	} else {
+		printf STDERR "Cannot parse %s:\n%s", $changelog, $firstline;
+		next
+	}
+}
+
+
+

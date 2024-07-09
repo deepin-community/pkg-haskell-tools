@@ -1,0 +1,107 @@
+#!/bin/bash
+
+if [ "$1" = "--help" -o -z "$1" ]
+then
+	cat <<__END__
+mass-change - Apply a change to many packages
+
+__END__
+	$0 --manpage
+	exit 0
+fi
+
+if [ "$1" = "--manpage" ]
+then
+cat <<__END__
+Usage: dht mass-change [-n] [MESSAGE] [ACTION] DIRECTORY ...
+
+This script runs ACTION in each of the given directories. If the ACTION
+effected a change, it will add MESSAGE to the changelog.
+
+It assumes that all directories are in the same git repository as this script.
+It ensures that the repository is clean to begin with, and will commit all
+changes at once at the end, if there was a change.
+__END__
+	exit 0;
+fi
+
+
+if [ "$1" = "-n" ]
+then
+  dry_run=1
+  shift
+fi
+
+message=$1
+shift
+action=$1
+shift
+
+if ! git diff-files --quiet -- "$@"
+then
+	echo "The git repository is not clean. Please fix that first!"
+	exit 1
+fi
+
+if ! git diff-index --cached --quiet HEAD -- "$@"
+then
+	echo "WARNING: The git index is not clean, and will be amended!"
+fi
+
+if test -n "$(git ls-files --exclude-standard --others -- "$@")"
+then
+	echo "The git repository has untracked files. Please fix that first!"
+	exit 1
+fi
+
+changes=0
+while [ -n "$1" ]
+do
+	dir=$1
+	shift
+
+	if ! pushd "$dir" >/dev/null
+	then
+		echo "Failed to switch to \"$dir\""
+		continue
+	fi
+
+	if [ ! -e debian/changelog ]
+	then
+		echo "No changelog file found, skipping $dir"
+		popd >/dev/null
+		continue
+	fi
+
+	echo "Processing $dir"
+
+	eval "$action"
+
+	# some hack to make git update its cache of the working directory?
+	#git update-index --refresh -q
+	git diff . > /dev/null
+	if git diff-files --quiet .
+	then
+		echo "Action did not change $dir, not modifying changelog"
+		popd >/dev/null
+		continue
+	fi
+	if [ -z "$dry_run" ]
+	then
+		echo "Staging these changes:"
+		git diff|colordiff
+		dht dch "$message"
+		git add .
+		changes=$((changes+1))
+	else
+		echo "Would stage these changes:"
+		git diff|colordiff
+		git checkout -- .
+	fi
+	popd >/dev/null
+done
+
+if [ $changes -gt 0 ]
+then
+	git commit -m "$message ($changes packages)"
+fi
