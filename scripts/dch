@@ -1,0 +1,75 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use DHT;
+
+usage <<__END__;
+dch - Append the changelog
+
+Usage: dht dch [debchange option]
+
+This is a wrapper for debchange(1), which will implement our custom heuristics
+of whether a new changelog entry should be created, or the current one be
+amended: If the current version is tagged, create a new changelog entry, else
+append to the current one.
+
+It passes either --append or --increment to debchange, so you should not.
+The --newversion option may be used in order to specify the version number.
+__END__
+
+manpage <<__END__;
+
+Usage: dht dch [debchange option]
+
+This is a wrapper for debchange(1), which will implement our custom heuristics
+of whether a new changelog entry should be created, or the current one be
+amended: If the current version is tagged, create a new changelog entry, else
+append to the current one.
+
+It passes either --append or --increment to debchange, so you should not.
+The --newversion option may be used in order to specify the version number.
+__END__
+
+my $changelog = "debian/changelog";
+unless (-r $changelog) {
+	print "ERROR: Could not find $changelog\n";
+	next;
+}
+open CHANGELOG, '<', $changelog or die @!;
+my $firstline = <CHANGELOG>;
+if ($firstline =~ m/([\w-]+) \(([\w:~.+-]+)\) ([\w-]+);/) {
+	my ($source, $version, $suite) = ($1, $2, $3);
+	my $tag = sprintf "%s_v%s", $source, $version;
+	$tag =~ tr/:~/_/;
+
+	my @options = ("--release-heuristic", "changelog", "--no-auto-nmu");
+	if (system(qw/git show-ref --quiet/, "refs/tags/$tag") == 0) {
+        if ($suite eq "UNRELEASED") {
+            printf STDERR "Tag %s exists, but version is marked UNRELEASED\n", $tag;
+            next;
+        }
+        # A new changelog entry should be created.
+        # If user passes '--newversion' then this version will be used,
+        # else debchange will behave as if '--increment' has been given.
+        system("debchange", @options, @ARGV);
+	} else {
+        if ($suite ne "UNRELEASED") {
+            # We want to append to this version, but debchange's heuristics
+            # consider this version to be released. Change distribution to
+            # UNRELEASED, and revert but to the current one later.
+            system("debchange", "-D", "UNRELEASED", "--append", "");
+        }
+        # Append to the current changelog entry.
+        # Since distribution is UNRELEASED, debchange's heuristics will
+        # append to the current entry, if '--newversion' is being used,
+        # or fallback to the '--append' option otherwise.
+        # Also, revert to the previous distribution. Users can always
+        # override this by passing the '-D' option.
+        system("debchange", @options, "-D", $suite, @ARGV);
+	}
+} else {
+	printf STDERR "Cannot parse %s:\n%s", $changelog, $firstline;
+	next;
+}

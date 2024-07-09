@@ -1,5 +1,217 @@
-template-repository (1.0-1) unstable; urgency=medium
+pkg-haskell-tools (0.12.5) unstable; urgency=medium
+
+  * Remove retired developer, Joachim Breitner, from Uploaders
+  * Bump Standards-Version to 4.6.2
+  * Replace smartmatch which has been deprecated in Perl
+
+ -- Ilias Tsitsimpis <iliastsi@debian.org>  Fri, 22 Mar 2024 17:43:50 +0200
+
+pkg-haskell-tools (0.12.4) unstable; urgency=medium
+
+  * Conform to optparse-applicative API change.
+
+ -- Clint Adams <clint@debian.org>  Sun, 02 Oct 2022 21:16:33 -0400
+
+pkg-haskell-tools (0.12.3) unstable; urgency=medium
+
+  * Team Upload
+  * upload: default to source-only uploads if no changes file is provided.
+    This feature was supposedly introduced on 0.11.1 but it never worked.
+  * Remove unused lintian override for binary-or-shlib-defines-rpath
+  * d/control:
+    - Add Rules-Requires-Root: no
+    - Bump DH to 10 to sync with d/compat
+    - Update VCS-* fields to point to Salsa
+
+ -- Samuel Henrique <samueloph@debian.org>  Sun, 14 Nov 2021 21:19:29 +0000
+
+pkg-haskell-tools (0.12.2) unstable; urgency=medium
+
+  * Fix FTBFS with newer GHC.  closes: #965064.
+  * what-to-upgrade: improve error for failure to open the
+    package-plan.  closes: #868762.
+
+ -- Clint Adams <clint@debian.org>  Sun, 06 Sep 2020 11:52:45 -0400
+
+pkg-haskell-tools (0.12.1) unstable; urgency=medium
+
+  * Upgrade to debhelper compat 10.
+
+ -- Clint Adams <clint@debian.org>  Sun, 06 Sep 2020 09:24:13 -0400
+
+pkg-haskell-tools (0.12) unstable; urgency=medium
+
+  * Port to shake 0.16.  closes: #901323.
+
+ -- Clint Adams <clint@debian.org>  Mon, 11 Jun 2018 13:29:32 -0400
+
+pkg-haskell-tools (0.11.1) unstable; urgency=medium
+
+  [ Joachim Breitner ]
+  * dht upload: Prefer a _source changes files over an _arch changes files.
+
+  [ Ilias Tsitsimpis ]
+  * dht what-to-upgrade: Support HTTPS URLs in watchfiles.
+  * Drop upper bound on concurrent-output (Closes: #881820)
+  * Change Priority to optional. Since Debian Policy version 4.0.1,
+    priority extra has been deprecated.
+  * Use the HTTPS form of the copyright-format URL
+  * Declare compliance with Debian policy 4.1.1
+
+ -- Ilias Tsitsimpis <iliastsi@debian.org>  Fri, 17 Nov 2017 13:39:46 +0200
+
+pkg-haskell-tools (0.11.0) unstable; urgency=medium
+
+  [ Sean Whitton ]
+  * dht upload: New -h option to select the dput upload host (Closes: #833536).
+  * dht upload: Defaults to the dput default_host, not ssh-upload.
+
+  [ Sven Bartscher ]
+  * Private scripts and libraries are now shipped in /usr/lib rather than
+    /var/lib.
+
+ -- Sven Bartscher <kritzefitz@debian.org>  Thu, 10 Aug 2017 12:29:28 -0400
+
+pkg-haskell-tools (0.10.5) unstable; urgency=medium
+
+  * Drop upper bound on optparse-applicative.  closes: #868635.
+
+ -- Clint Adams <clint@debian.org>  Mon, 17 Jul 2017 08:50:22 -0400
+
+pkg-haskell-tools (0.10.4) unstable; urgency=medium
+
+  [ Joachim Breitner ]
+  * dht make-all: Fancy dynamic console output
+
+  [ Ilias Tsitsimpis ]
+  * dht dch: Support debchange's '--newversion' option
+  * Build-Depend on newer version of devscripts (>= 2.16.6)
+    This newer version is needed because 'dht dch' relies on
+    #826837 in order to properly work.
+  * dht dch: Use the '--no-auto-nmu' debchange option
+  * dht upgrade: Use 'dht dch' instead of debchange
+  * Remove 'section' field from binary package
+    This field duplicates the value inherited from the source
+    package paragraph.
+  * Improve the Vcs-Browser/Vcs-Git fields
+    - Use the newer cgit interface, instead of gitweb.
+    - Use a secure transport protocol for the URI
+  * Bump standards version to 3.9.8 (no changes required)
+  * Update 'Source' field on d/copyright
+    The package is not hosted on hackage.
+  * Register the documentation in doc-base
+  * Bump B-Ds as part of GHC 8 transition
+
+ -- Ilias Tsitsimpis <i.tsitsimpis@gmail.com>  Sat, 29 Oct 2016 00:14:01 +0300
+
+pkg-haskell-tools (0.10.3) unstable; urgency=medium
+
+  * dht upgrade: Minor improvements.
+  * dht debian2dsc: Add some hacks to handle repacksuffixes better.
+
+ -- Joachim Breitner <nomeata@debian.org>  Sun, 29 May 2016 12:08:45 +0200
+
+pkg-haskell-tools (0.10.2) unstable; urgency=medium
+
+  [ Joachim Breitner ]
+  * dht make-all: Do not print "dpkg-deb" calls.
+  * dht make-all: Bump a few dependencies.  closes: #814991.
+  * dht upgrade: More robust debian/watch parsing
+
+  [ Sven Bartscher ]
+  * Added dependencies on perl and perl libraries, as dh_perl didn't add
+    them.
+
+  [ Clint Adams ]
+  * upgrade: pass a static list of --exec-map's to cabal-debian
+  * Fix thinko in libfile-slurp-perl dependency
+  * Add libfile-slurp-perl to Build-Depends as well, since it seems to
+    be necessary to generate man pages.
+
+ -- Clint Adams <clint@debian.org>  Sun, 13 Mar 2016 22:30:08 -0400
+
+pkg-haskell-tools (0.10.1) unstable; urgency=medium
+
+  * Allow the version of base that comes with 7.10
+
+ -- Joachim Breitner <nomeata@debian.org>  Thu, 10 Dec 2015 12:33:53 +0100
+
+pkg-haskell-tools (0.10) unstable; urgency=low
+
+  [ Sven Bartscher ]
+  * dht make-all: Support package names as targets, additionally to of
+    full changes file names.
+
+  [ Joachim Breitner ]
+  * dht upload: Do not trip over an already signed .changes file.
+  * dht upload: Pass --re-resign to debsign.
+  * dht make-all: Do not pass --no-source to sbuild (why should we?)
+
+ -- Joachim Breitner <nomeata@debian.org>  Mon, 07 Dec 2015 19:51:26 +0100
+
+pkg-haskell-tools (0.9) unstable; urgency=medium
+
+  [ Joachim Breitner ]
+  * Depend on cabal-debian >= 4.31, the first version supporting --upgrade
+    (among other improvements)
+  * New script: dch (wrapper around debchange)
+  * dht upload: If no changes file is given, derive from the current directory
+    (like debrelease does).
+  * dht make-all: Get rid of "--distribution" parameter and derive it from the
+    changelog, working around sbuild bug #529281
+
+ -- Sven Bartscher <sven.bartscher@weltraumschlangen.de>  Thu, 10 Sep 2015 19:27:22 +0200
+
+pkg-haskell-tools (0.8) unstable; urgency=medium
+
+  * Added missing dependency on cabal-debian
+
+ -- Sven Bartscher <sven.bartscher@weltraumschlangen.de>  Sun, 16 Aug 2015 15:11:27 +0200
+
+pkg-haskell-tools (0.7) unstable; urgency=medium
+
+  * Do not run changestool if sbuild already failed
+  * make-all: Run shake with progress reporting enabled
+  * New script: cabal-debian (wrapper around cabal-debian)
+  * New script: init (Initializes the packaging)
+
+ -- Joachim Breitner <nomeata@debian.org>  Sat, 15 Aug 2015 21:25:11 +0200
+
+pkg-haskell-tools (0.6) unstable; urgency=medium
+
+  * New script: mass-change (really useful!)
+
+ -- Joachim Breitner <nomeata@debian.org>  Thu, 13 Aug 2015 20:26:36 +0200
+
+pkg-haskell-tools (0.5) unstable; urgency=medium
+
+  * Install all scripts, relying on the order of debian/*.install
+
+ -- Joachim Breitner <nomeata@debian.org>  Thu, 13 Aug 2015 18:05:04 +0200
+
+pkg-haskell-tools (0.4) unstable; urgency=medium
+
+  * Override lintian error about rpath, as with all Haskell packages
+
+ -- Joachim Breitner <nomeata@debian.org>  Thu, 13 Aug 2015 14:16:37 +0200
+
+pkg-haskell-tools (0.3) unstable; urgency=medium
+
+  * New script: upload
+
+ -- Joachim Breitner <nomeata@debian.org>  Thu, 13 Aug 2015 14:11:46 +0200
+
+pkg-haskell-tools (0.2) unstable; urgency=medium
+
+  * Use pandoc instead of help2man
+  * New script: what-to-build
+  * New script: what-to-upgrade
+  * New script: debian2dsc
+
+ -- Joachim Breitner <nomeata@debian.org>  Thu, 13 Aug 2015 13:46:39 +0200
+
+pkg-haskell-tools (0.1) unstable; urgency=low
 
   * Initial release
 
- -- Tsic404 <liuheng@deepin.org>  Sat, 28 Jan 2023 13:46:49 +0800
+ -- Joachim Breitner <nomeata@debian.org>  Thu, 13 Aug 2015 12:06:28 +0200

@@ -1,0 +1,49 @@
+#!/bin/bash
+
+set -e
+
+if [ "$1" = "--help" ]
+then
+	cat <<__END__
+cabal-debian - Run cabal-debian with inferred parameters
+
+__END__
+	$0 --manpage
+	exit 0
+fi
+
+
+if [ "$1" = "--manpage" ]
+then
+cat <<'__END__'
+Usage: dht cabal-debian [option...]
+
+This is a wrapper around cabal-debian that tries to infer a few useful facts:
+ * If the test suite is enabled.
+ * Which Cabal flags are to be used.
+ * The source package name.
+
+None of these checks are perfect, so check the result.
+
+It also passes `--official`.
+
+__END__
+	exit 0;
+fi
+
+if test -e debian/rules && grep -q '^DEB_ENABLE_TESTS :\?= yes' debian/rules
+then
+  test=""
+else
+  test="--no-tests"
+fi
+
+if test -e debian/rules
+then
+flags=$(perl -ne 'if (/^DEB_SETUP_GHC_CONFIGURE_ARGS/) {while (/(?:-f|--flags)=? ?(-?[a-z0-9_-]+)/gc) { print "--cabal-flag $1 "}}' debian/rules)
+fi
+
+srcname=$(basename $(pwd))
+
+cabal-debian --official --source-package-name $srcname $test $flags "$@"
+find debian/ -name '*~' -delete

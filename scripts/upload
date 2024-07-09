@@ -1,0 +1,126 @@
+#!/bin/bash
+
+set -e
+
+args=`getopt -n "$0" -o "h:" -l "help,manpage" -- "$@"`
+eval set -- "$args"
+
+for i
+do
+    shift
+    case $i in
+	"--help")
+	    echo "upload - Uploads, tags and pushes"
+	    echo
+	    echo "Usage: dht upload [-h HOST] [foo.changes]"
+	    echo
+	    echo "Signs the .changes file and the corresponding .dsc file in a temporary"
+	    echo "location (to avoid touching the original files), uploads them to the archive"
+	    echo "using \"dput\", tags them in the repository and pushes the tag."
+	    echo
+	    echo "If the -h parameter is specified, upload to HOST, rather than the dput"
+	    echo "\"default_host\".  If mass-uploading, it is suggested to use \"ssh-upload\" for"
+	    echo "robustness (see the discussion in #833536)."
+	    echo
+	    echo "If no changes file is given, but the script is run in a debian source package,"
+	    echo "it checks the parent directory for an appropriately named changes file, just"
+	    echo "like debrelease(1) would do."
+	    echo
+	    echo "Checks that the distribution is not UNRELEASED and that the tag does"
+	    echo "not exist already."
+	    echo
+	    exit 0
+	    ;;
+	"--manpage")
+	    cat <<'__END__'
+Usage: dht upload [-h HOST] [foo.changes]
+
+Signs the `.changes` file and the corresponding `.dsc` file in a temporary
+location (to avoid touching the original files), uploads them to the archive
+using `dput`, tags them in the repository and pushes the tag.
+
+If the -h parameter is specified, upload to HOST, rather than the dput
+`default_host`.  If mass-uploading, it is suggested to use `ssh-upload`
+for robustness (see the discussion in #833536).
+
+If no changes file is given, but the script is run in a debian source package,
+it checks the parent directory for an appropriately named changes file, just
+like debrelease(1) would do.
+
+Checks that the distribution is not `UNRELEASED` and that the tag does
+not exist already.
+__END__
+	    exit 0;
+	    ;;
+	"-h")
+	    host="$1"
+	    ;;
+	"--")
+	    break;
+	    ;;
+    esac
+done
+
+changes="$@"
+
+if [ -z "$changes" -a -r "debian/changelog" ]
+then
+	src="$(dpkg-parsechangelog -SSource)"
+	ver="$(dpkg-parsechangelog -SVersion | perl -pe 's/^\d+://')"
+	arch="$(dpkg-architecture -qDEB_HOST_ARCH)"
+	changes_path_source="../${src}_${ver}_source.changes"
+	changes_path_arch="../${src}_${ver}_${arch}.changes"
+	if [ -e $changes_path_source ]
+	then
+	  changes="$changes_path_source"
+	elif [ -e $changes_path_arch ]
+	then
+	  changes="$changes_path_arch"
+	else
+	  echo "Cannot find $changes_path_source or $changes_path_arch."
+	  exit 1
+	fi
+fi
+
+root="$(realpath --relative-to=$PWD "$(git rev-parse --show-toplevel)")"
+tmpdir=$root/uploads
+
+if [ -e $tmpdir ]
+then
+	echo "$tmpdir exists, please remove"
+	exit 1
+fi
+trap 'rm -rf "$tmpdir"' EXIT
+mkdir $tmpdir
+
+for c in $changes
+do
+	src="$(grep ^Source "$c"|grep-dctrl -s Source -n '' )"
+	ver="$(grep ^Version "$c"|grep -v GnuPG|grep-dctrl -s Version -n '' )"
+	dist="$(grep ^Distribution "$c"|grep-dctrl -s Distribution -n '' )"
+	tag="${src}_v$(echo $ver| tr ':~' _)"
+	if [ "$dist" == "UNRELEASED" ]
+	then
+		echo "Skipping $c, not ready for upload"
+		continue
+	fi
+	if git show-ref --quiet --verify "refs/tags/$tag"
+	then
+		echo "Skipping $c, already released"
+		continue
+	fi
+
+	dir="$root/p/$src"
+	rev=$(git log -n 1 --pretty=format:%H -- $dir)
+	msg="Tagging $src version $ver, targeted for $dist"
+	dcmd cp --reflink=auto -v "$c" "$tmpdir"
+	debsign --re-sign "$tmpdir"/"$(basename "$c")"
+	if [ -z "$host" ]
+	then
+	    dput "$tmpdir"/"$(basename "$c")"
+	else
+	    dput "$host" "$tmpdir"/"$(basename "$c")"
+	fi
+	git -C "$dir" tag -a -m "$msg" "$tag" "$rev"
+done
+git push --tags

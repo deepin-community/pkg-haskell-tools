@@ -1,0 +1,5 @@
+scripts/* usr/lib/pkg-haskell-tools/bin
+lib/* usr/lib/pkg-haskell-tools/lib
+# order significant, this overwrites the wrapper installed in the first line
+dist-ghc/build/make-all/make-all usr/lib/pkg-haskell-tools/bin
+dht usr/bin

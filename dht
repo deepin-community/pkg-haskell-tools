@@ -1,0 +1,117 @@
+#!/usr/bin/perl
+
+use v5.10.1;
+
+use strict;
+
+use File::Basename;
+use FindBin  qw($Bin);;
+
+our $DHT_SCRIPT_DIR;
+$ENV{PERL5LIB} = ":$ENV{PERL5LIB}" if $ENV{PERL5LIB};
+if ($Bin eq "/usr/bin") {
+	$DHT_SCRIPT_DIR="/usr/lib/pkg-haskell-tools/bin";
+	$ENV{PERL5LIB} = "/usr/lib/pkg-haskell-tools/lib" . ($ENV{PERL5LIB} || "");
+} else {
+	$DHT_SCRIPT_DIR = "$Bin/scripts";
+	$ENV{PERL5LIB} = "$Bin/lib" . ($ENV{PERL5LIB}|| "");
+	$ENV{PATH} = "$Bin:$ENV{PATH}";
+}
+
+$ENV{DHT_SCRIPT_DIR} = $DHT_SCRIPT_DIR;
+
+our @DHT_SCRIPTS = ();
+opendir(DIR, $DHT_SCRIPT_DIR) or die $!;
+while (my $file = readdir(DIR)) {
+	next if ($file =~ m/^\./);
+	push @DHT_SCRIPTS, $file;
+}
+closedir(DIR);
+@DHT_SCRIPTS = sort @DHT_SCRIPTS;
+
+
+if (not @ARGV or $ARGV[0] eq "--help" or $ARGV[0] eq "-h" ) {
+	my $prog = basename($0);
+	print <<__END__;
+Usage: $0 subcommand [args..]
+
+This is the Debian Haskell Team multi purpose tool, combining various more or
+less useful tools.
+
+Supported subcommands:
+__END__
+
+	for my $script (@DHT_SCRIPTS) {
+		# print first line of help
+		open (HELP, '-|', "$DHT_SCRIPT_DIR/$script", "--help") or die $!;
+		print "  " . (scalar(<HELP>) || "$script --help failed");
+		close HELP;
+	}
+
+	print "\n";
+	print "Run $prog subcommand --help for more information.\n";
+	exit(0);
+}
+
+if (not @ARGV or $ARGV[0] eq "--manpage" ) {
+	my $prog = basename($0);
+	print <<__END__;
+% DHT(1)
+% Debian Haskell Group
+
+# NAME
+
+dht -- Debian Haskell Packaging Tools
+
+# SYNOPSIS
+
+$0 subcommand [args..]
+
+# DESCRIPTION
+
+This is the Debian Haskell Team multi purpose tool, combining various more or
+less useful tools.
+
+Supported subcommands:
+
+__END__
+
+	for my $script (@DHT_SCRIPTS) {
+		# print first line of help
+		open (HELP, '-|', "$DHT_SCRIPT_DIR/$script", "--help") or die $!;
+		print " *  " . (scalar(<HELP>) || "$script --help failed");
+		close HELP;
+	}
+
+	print <<__END__;
+
+# Subcommands
+
+__END__
+
+	for my $script (@DHT_SCRIPTS) {
+		print <<__END__;
+
+## dht $script
+
+__END__
+		system ("$DHT_SCRIPT_DIR/$script", "--manpage");
+	}
+
+	exit (1);
+}
+
+if (not @ARGV or $ARGV[0] eq "--version" ) {
+	print "$0 version UNKNOWN";
+	exit(0);
+}
+
+my $cmd = shift @ARGV;
+unless (grep {$_ eq $cmd} @DHT_SCRIPTS) {
+	print "Subcommand $cmd not known.\n";
+	print "Run $0 to see a list of supported commands.\n";
+	exit(1)
+}
+
+
+exec "$DHT_SCRIPT_DIR/$cmd",@ARGV;

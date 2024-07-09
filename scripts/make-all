@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# This is a wrapper around the haskell binary
+# to be used when dht is run from the source directory
+
+# This is not to be installed into the final package!
+
+test -e $(dirname $0)/../dist/build/make-all/make-all     && exec $(dirname $0)/../dist/build/make-all/make-all "$@"
+test -e $(dirname $0)/../dist-ghc/build/make-all/make-all && exec $(dirname $0)/../dist-ghc/build/make-all/make-all "$@"
+echo 'Please run "cabal build" first!' >&2

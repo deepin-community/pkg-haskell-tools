@@ -1,0 +1,59 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use DHT;
+
+usage <<__END__;
+what-to-build - Find packages to be built
+
+Usage: dht what-to-build [directory..]
+
+For all given directories (defaults to p/*/), check if they are to be built.
+This means, in particular:
+
+ * The latest entry in debian/changelog is not UNRELEASED, and
+ * there is no corresponding tag in the git repository.
+__END__
+
+manpage <<__END__;
+
+Usage: dht what-to-build [directory..]
+
+For all given directories (defaults to `p/*/`), check if they are to be built.
+This means, in particular:
+
+ * The latest entry in `debian/changelog` is *not* `UNRELEASED`, and
+ * there is no corresponding tag in the git repository.
+__END__
+
+
+my @dirs = @ARGV;
+
+unless (@dirs) {
+	@dirs = glob 'p/*/';
+}
+
+my %tags;
+open TAGS, '-|', 'git tag -l' or die @!;
+while (<TAGS>) { chomp; $tags{$_}++ };
+close TAGS or die @!;
+
+for my $dir (@dirs) {
+	my $changelog = "$dir/debian/changelog";
+	next unless -r $changelog;
+	open CHANGELOG, '<', $changelog or die @!;
+	my $firstline = <CHANGELOG>;
+	if ($firstline =~ m/([\w-]+) \(([\w:~.+-]+)\) (\w+);/) {
+		my ($source, $version, $suite) = ($1, $2, $3);
+		my $tag = sprintf "%s_v%s", $source, $version;
+		$tag =~ tr/:~/_/;
+		next if ($suite eq "UNRELEASED");
+		next if ($tags{$tag});
+		printf "%s\n", $dir;
+	} else {
+		printf STDERR "Cannot parse %s:\n%s", $changelog, $firstline;
+		next
+	}
+}

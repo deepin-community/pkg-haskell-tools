@@ -1,0 +1,52 @@
+#!/bin/bash
+
+set -e
+
+if [ -z "$1" -o "$1" = "--help" ]
+then
+  cat <<'__END__'
+what-to-upload - Lists .changes files that should be uploaded
+
+Usage: dht what-to-upload foo.changes ..
+
+Given a number of changes files, reports hose that should be uploaded, i.e.
+the distribution is not UNRELEASED and that the tag does not exist already.
+__END__
+
+  exit 0
+fi
+
+
+if [ "$1" = "--manpage" ]
+then
+cat <<'__END__'
+Usage: dht what-to-upload foo.changes ..
+
+Given a number of changes files, reports hose that should be uploaded, i.e.
+the distribution is not UNRELEASED and that the tag does not exist already.
+__END__
+	exit 0;
+fi
+
+changes="$@"
+
+root="$(realpath --relative-to=$PWD "$(git rev-parse --show-toplevel)")"
+
+for c in $changes
+do
+	src="$(grep ^Source "$c"|grep-dctrl -s Source -n '' )"
+	ver="$(grep ^Version "$c"|grep-dctrl -s Version -n '' )"
+	dist="$(grep ^Distribution "$c"|grep-dctrl -s Distribution -n '' )"
+	tag="${src}_v$(echo $ver| tr ':~' _)"
+	if [ "$dist" == "UNRELEASED" ]
+	then
+		#echo "Skipping $c, not ready for upload"
+		continue
+	fi
+	if git show-ref --quiet --verify "refs/tags/$tag"
+	then
+		#echo "Skipping $c, already released"
+		continue
+	fi
+	echo $c
+done
